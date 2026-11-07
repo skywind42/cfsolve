@@ -1,0 +1,46 @@
+name: Remote Build Binary
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            artifact_name: cfsolve-windows-x64
+            binary_name: challenge.exe
+          - os: ubuntu-latest
+            artifact_name: cfsolve-linux-x64
+            binary_name: challenge
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 读取 rust-toolchain.toml 自动安装指定版本的 Rust
+      - name: Install Rust
+        run: rustup toolchain install
+
+      # 编译 release 二进制程序
+      - name: Build release binary
+        run: cargo build --release --bin challenge
+
+      # 打包二进制文件与必须的 profiles 资源目录
+      - name: Prepare artifact directory
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp target/release/${{ matrix.binary_name }} dist/
+          cp -r profiles dist/
+
+      # 上传产物以供下载
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: dist/
